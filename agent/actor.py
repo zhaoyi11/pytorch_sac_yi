@@ -62,14 +62,15 @@ class DiagGaussianActor(nn.Module):
         super().__init__()
 
         self.log_std_bounds = log_std_bounds
-        self.trunk = utils.mlp(obs_dim, hidden_dim, 2 * action_dim,
-                               hidden_depth)
+        self.trunk = nn.Sequential(nn.Linear(obs_dim, hidden_dim), nn.LayerNorm(hidden_dim), nn.Tanh())
+        self.actor = utils.mlp(hidden_dim, hidden_dim, 2 * action_dim,
+                               hidden_depth-1)
 
         self.outputs = dict()
         self.apply(utils.weight_init)
 
     def forward(self, obs):
-        mu, log_std = self.trunk(obs).chunk(2, dim=-1)
+        mu, log_std = self.actor(self.trunk(obs)).chunk(2, dim=-1)
 
         # constrain log_std inside [log_std_min, log_std_max]
         log_std = torch.tanh(log_std)

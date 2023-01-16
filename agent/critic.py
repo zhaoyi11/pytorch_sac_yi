@@ -11,8 +11,9 @@ class DoubleQCritic(nn.Module):
     def __init__(self, obs_dim, action_dim, hidden_dim, hidden_depth):
         super().__init__()
 
-        self.Q1 = utils.mlp(obs_dim + action_dim, hidden_dim, 1, hidden_depth)
-        self.Q2 = utils.mlp(obs_dim + action_dim, hidden_dim, 1, hidden_depth)
+        self.trunk = nn.Sequential(nn.Linear(obs_dim + action_dim, hidden_dim), nn.LayerNorm(hidden_dim), nn.Tanh())
+        self.Q1 = utils.mlp(hidden_dim, hidden_dim, 1, hidden_depth-1)
+        self.Q2 = utils.mlp(hidden_dim, hidden_dim, 1, hidden_depth-1)
 
         self.outputs = dict()
         self.apply(utils.weight_init)
@@ -21,6 +22,7 @@ class DoubleQCritic(nn.Module):
         assert obs.size(0) == action.size(0)
 
         obs_action = torch.cat([obs, action], dim=-1)
+        obs_action = self.trunk(obs_action)
         q1 = self.Q1(obs_action)
         q2 = self.Q2(obs_action)
 

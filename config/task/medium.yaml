@@ -1,3 +1,0 @@
-train_episode: 1000
-latent_dim: 50
-std_schedule: linear(1.0, 0.1, 200)

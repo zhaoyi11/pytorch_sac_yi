@@ -28,14 +28,14 @@ double_q_critic:
   params:
     obs_dim: ${agent.params.obs_dim}
     action_dim: ${agent.params.action_dim}
-    hidden_dim: 1024
-    hidden_depth: 2
+    hidden_dim: 512
+    hidden_depth: 3
     
 diag_gaussian_actor:
   class: agent.actor.DiagGaussianActor
   params:
     obs_dim: ${agent.params.obs_dim}
     action_dim: ${agent.params.action_dim}
-    hidden_depth: 2
-    hidden_dim: 1024
+    hidden_depth: 3
+    hidden_dim: 512
     log_std_bounds: [-5, 2]

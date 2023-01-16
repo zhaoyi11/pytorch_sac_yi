@@ -1,8 +1,0 @@
-# @package _global_
-defaults:
-  - _self_
-  - hard
-
-env_name: humanoid-stand
-
-nstep: 1
