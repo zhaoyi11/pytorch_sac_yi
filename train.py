@@ -30,6 +30,10 @@ class Workspace(object):
             import random
             cfg.seed = random.randint(0, 1000)
 
+        domain, task = str(cfg.env).replace('-', '_').split('_', 1)
+        if domain in['humanoid', 'dog']:
+            cfg.num_train_steps = int(5e6)
+
         cfg.num_train_steps = int(cfg.num_train_steps / cfg.action_repeat) 
         cfg.replay_buffer_capacity = int(cfg.replay_buffer_capacity / cfg.action_repeat) 
         cfg.num_seed_steps = int(cfg.num_seed_steps / cfg.action_repeat)
