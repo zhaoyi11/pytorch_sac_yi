@@ -1,34 +1,45 @@
 defaults:
-    - agent: sac
+  - _self_
+  - agent: sac
+
+  # disable logging
+  - override hydra/hydra_logging: disabled  
+  - override hydra/job_logging: disabled  
 
 env: cheetah_run
 
 # this needs to be specified manually
 experiment: test_exp
 
-num_train_steps: 1e6
+action_repeat: 2
+max_episode_length: 1000
+num_env_steps: 1e6 # 1K episodes
+num_train_steps: ${num_env_steps}
 replay_buffer_capacity: ${num_train_steps}
 
-num_seed_steps: 5000
-
-eval_frequency: 10000
+# frames
+num_seed_steps: 10000 # 10 episodes
+eval_frequency: 25000
 num_eval_episodes: 10
 
 device: cuda
 
 # logger
 log_frequency: 10000
-log_save_tb: true
+log_save_tb: false
+
+use_wandb: true
 
 # video recorder
-save_video: true
+save_video: false
 
+seed: -1
 
-seed: 1
+run_suffix: 0
+# ref: https://stackoverflow.com/questions/65104134/disable-file-output-of-hydra
+hydra:  
+    output_subdir: null  
+    run:  
+        dir: .
 
-
-# hydra configuration
-hydra:
-    name: ${env}
-    run:
-        dir: ./exp/${now:%Y.%m.%d}/${now:%H%M}_${agent.name}_${experiment}
+    

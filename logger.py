@@ -1,4 +1,3 @@
-from torch.utils.tensorboard import SummaryWriter
 from collections import defaultdict
 import json
 import os
@@ -130,6 +129,8 @@ class Logger(object):
                 except:
                     print("logger.py warning: Unable to remove tb directory")
                     pass
+                
+            from torch.utils.tensorboard import SummaryWriter
             self._sw = SummaryWriter(tb_dir)
         else:
             self._sw = None
