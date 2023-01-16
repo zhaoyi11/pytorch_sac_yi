@@ -120,6 +120,9 @@ class Logger(object):
                  log_frequency=10000,
                  agent='sac'):
         self._log_dir = log_dir
+        import utils
+        utils.make_dir(self._log_dir)
+        
         self._log_frequency = log_frequency
         if save_tb:
             tb_dir = os.path.join(log_dir, 'tb')

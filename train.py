@@ -23,6 +23,7 @@ import wandb
 class Workspace(object):
     def __init__(self, cfg):
         self.work_dir = os.getcwd()
+
         print(f'workspace: {self.work_dir}')
 
         if cfg.seed == -1:
@@ -37,7 +38,7 @@ class Workspace(object):
         cfg.log_frequency = int(cfg.log_frequency / cfg.action_repeat)
         self.cfg = cfg
 
-        self.logger = Logger(self.work_dir,
+        self.logger = Logger(self.work_dir + f'/logs/{cfg.env}/{cfg.seed}',
                              save_tb=cfg.log_save_tb,
                              log_frequency=int(cfg.log_frequency),
                              agent=cfg.agent.name)
