@@ -57,7 +57,6 @@ def set_seed_everywhere(seed):
 
 def make_dir(*path_parts):
     dir_path = os.path.join(*path_parts)
-    print('000', dir_path)
     try:
         os.makedirs(dir_path)
     except OSError:

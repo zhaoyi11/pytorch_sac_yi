@@ -43,8 +43,10 @@ class Workspace(object):
                              log_frequency=int(cfg.log_frequency),
                              agent=cfg.agent.name)
         if self.cfg.use_wandb:
-            # wandb.init()
-            pass # TODO:
+            wandb.init(project='sac_aligned', name=f'{cfg.env}-{str(cfg.seed)}-{int(time.time())}',
+                        group=f'{cfg.env}',
+                        config=cfg,
+                        monitor_gym=True)
 
         utils.set_seed_everywhere(cfg.seed)
         self.device = torch.device(cfg.device)
@@ -88,24 +90,40 @@ class Workspace(object):
         average_episode_reward /= self.cfg.num_eval_episodes
         self.logger.log('eval/episode_reward', average_episode_reward,
                         self.env_step)
-        self.logger.dump(self.env_step)
+
+        return {'env_step': self.env_step, 'episode_reward': average_episode_reward}
 
     def run(self):
         episode, episode_reward, done = 0, 0, True
         start_time = time.time()
+        episode_start_time = time.time()
         while self.step < self.cfg.num_train_steps:
             if done:
                 if self.step > 0:
+                    duration = time.time() - episode_start_time
+                    total_time = time.time() - start_time
                     self.logger.log('train/duration',
-                                    time.time() - start_time, self.env_step)
-                    start_time = time.time()
+                                    duration, self.env_step)
+                    self.logger.log('train/total_time', total_time, self.env_step)
+                    
                     self.logger.dump(
                         self.env_step, save=(self.step > self.cfg.num_seed_steps))
+                    
+                    episode_start_time = time.time()
 
                 # evaluate agent periodically
-                if self.step > 0 and self.step % self.cfg.eval_frequency == 0:
+                if self.step % self.cfg.eval_frequency == 0:
                     self.logger.log('eval/episode', episode, self.env_step)
-                    self.evaluate()
+                    eval_metrics = self.evaluate()
+                    duration = time.time() - episode_start_time
+                    total_time = time.time() - start_time
+                    self.logger.log('eval/episode_reward', eval_metrics['episode_reward'], self.env_step)
+                    self.logger.log('eval/duration', duration, self.env_step)
+                    self.logger.log('eval/total_time', total_time, self.env_step)
+                    self.logger.dump(self.env_step)
+                    eval_metrics.update({'episode': episode, 'duration': duration, 'total_time': total_time})
+                    if self.cfg.use_wandb:
+                        wandb.log({'eval/': eval_metrics}, step=self.env_step)
 
                 self.logger.log('train/episode_reward', episode_reward,
                                 self.env_step)
