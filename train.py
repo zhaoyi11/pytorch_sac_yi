@@ -15,7 +15,7 @@ from logger import Logger
 from replay_buffer import ReplayBuffer
 import utils
 from env import make_env
-from agent.sac import SACAgent
+from agent.redq import REDQAgent
 
 import hydra
 import wandb
@@ -47,7 +47,7 @@ class Workspace(object):
                              log_frequency=int(cfg.log_frequency),
                              agent=cfg.agent.name)
         if self.cfg.use_wandb:
-            wandb.init(project='sac_aligned', name=f'{cfg.env}-{str(cfg.seed)}-{int(time.time())}',
+            wandb.init(project='redq_aligned', name=f'{cfg.env}-{str(cfg.seed)}-{int(time.time())}',
                         group=f'{cfg.env}',
                         config=cfg,
                         monitor_gym=True)
@@ -62,8 +62,8 @@ class Workspace(object):
             float(self.env.action_space.low.min()),
             float(self.env.action_space.high.max())
         ]
-        # self.agent = hydra.utils.instantiate(cfg.agent)
-        self.agent = SACAgent(**cfg.agent.params)
+
+        self.agent = REDQAgent(**cfg.agent.params)
 
         self.replay_buffer = ReplayBuffer(self.env.observation_space.shape,
                                           self.env.action_space.shape,

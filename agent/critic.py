@@ -5,6 +5,36 @@ import torch.nn.functional as F
 
 import utils
 
+class EnsembleQCritic(nn.Module):
+    """Critic network, employes double Q-learning."""
+    def __init__(self, obs_dim, action_dim, hidden_dim, hidden_depth, num_q=2):
+        super().__init__()
+
+        self.trunk = nn.Sequential(nn.Linear(obs_dim + action_dim, hidden_dim), nn.LayerNorm(hidden_dim), nn.Tanh())
+        self.Qs = nn.ModuleList([utils.mlp(hidden_dim, hidden_dim, 1, hidden_depth-1)
+                                 for _ in range(num_q)])
+
+        self.outputs = dict()
+        self.apply(utils.weight_init)
+
+    def forward(self, obs, action, idxs=None):
+        assert obs.size(0) == action.size(0)
+
+        obs_action = torch.cat([obs, action], dim=-1)
+        obs_action = self.trunk(obs_action)
+        if idxs is None:
+            qs = [Q(obs_action) for Q in self.Qs]
+        else: # pick qs according to idxs
+            assert isinstance(idxs, (list, np.ndarray))
+            qs = [self.Qs[i](obs_action) for i in idxs]
+        self.outputs['q'] = qs[0]
+        return qs
+
+    def log(self, logger, step):
+        for k, v in self.outputs.items():
+            logger.log_histogram(f'train_critic/{k}_hist', v, step)
+
+
 
 class DoubleQCritic(nn.Module):
     """Critic network, employes double Q-learning."""

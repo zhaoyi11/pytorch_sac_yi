@@ -1,6 +1,6 @@
 defaults:
   - _self_
-  - agent: sac
+  - agent: redq
 
   # disable logging
   - override hydra/hydra_logging: disabled  

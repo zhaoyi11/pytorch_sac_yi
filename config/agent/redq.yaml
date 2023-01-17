@@ -22,6 +22,10 @@ agent:
     critic_target_update_frequency: 1
     batch_size: 512
     learnable_temperature: true
+
+    # specific to redq
+    num_min: 2
+    utd_ratio: 20
     
 double_q_critic:
   class: agent.critic.DoubleQCritic
@@ -30,7 +34,8 @@ double_q_critic:
     action_dim: ${agent.params.action_dim}
     hidden_dim: 512
     hidden_depth: 3
-    
+    num_q : 10
+
 diag_gaussian_actor:
   class: agent.actor.DiagGaussianActor
   params:
