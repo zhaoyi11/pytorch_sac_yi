@@ -25,7 +25,7 @@ agent:
 
     # specific to redq
     num_min: 2
-    utd_ratio: 20
+    utd_ratio: 10
     
 double_q_critic:
   class: agent.critic.DoubleQCritic

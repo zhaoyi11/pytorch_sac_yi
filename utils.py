@@ -70,6 +70,19 @@ def weight_init(m):
         if hasattr(m.bias, 'data'):
             m.bias.data.fill_(0.0)
 
+def q_net(input_dim, hidden_dim, output_dim, hidden_depth, output_mod=None):
+    if hidden_depth == 0:
+        mods = [nn.Linear(input_dim, output_dim), nn.LayerNorm(output_dim), nn.Tanh()]
+    else:
+        mods = [nn.Linear(input_dim, hidden_dim), nn.LayerNorm(hidden_dim), nn.Tanh()] # apply the layernorm and tanh for the first layer
+        for i in range(hidden_depth - 1):
+            mods += [nn.Linear(hidden_dim, hidden_dim), nn.ELU()]
+        mods.append(nn.Linear(hidden_dim, output_dim))
+    if output_mod is not None:
+        mods.append(output_mod)
+    trunk = nn.Sequential(*mods)
+    return trunk
+
 
 class MLP(nn.Module):
     def __init__(self,

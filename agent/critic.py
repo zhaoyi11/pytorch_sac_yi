@@ -5,14 +5,14 @@ import torch.nn.functional as F
 
 import utils
 
+
+
 class EnsembleQCritic(nn.Module):
     """Critic network, employes double Q-learning."""
     def __init__(self, obs_dim, action_dim, hidden_dim, hidden_depth, num_q=2):
         super().__init__()
 
-        self.trunk = nn.Sequential(nn.Linear(obs_dim + action_dim, hidden_dim), nn.LayerNorm(hidden_dim), nn.Tanh())
-        self.Qs = nn.ModuleList([utils.mlp(hidden_dim, hidden_dim, 1, hidden_depth-1)
-                                 for _ in range(num_q)])
+        self.Qs = nn.ModuleList([utils.q_net(obs_dim + action_dim, hidden_dim, 1, hidden_depth)])
 
         self.outputs = dict()
         self.apply(utils.weight_init)
@@ -21,7 +21,6 @@ class EnsembleQCritic(nn.Module):
         assert obs.size(0) == action.size(0)
 
         obs_action = torch.cat([obs, action], dim=-1)
-        obs_action = self.trunk(obs_action)
         if idxs is None:
             qs = [Q(obs_action) for Q in self.Qs]
         else: # pick qs according to idxs
