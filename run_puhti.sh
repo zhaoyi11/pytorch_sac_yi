@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --job-name=alm
+#SBATCH --job-name=redq
 #SBATCH --account=project_2003582
-#SBATCH --output=alm_out_%A_%a.txt
-#SBATCH --error=alm_err_%A_%a.txt
+#SBATCH --output=redq_out_%A_%a.txt
+#SBATCH --error=redq_err_%A_%a.txt
 #SBATCH --time=72:00:00
 #SBATCH --mem=60G
 #SBATCH --partition=gpu
