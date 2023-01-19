@@ -12,7 +12,7 @@ class EnsembleQCritic(nn.Module):
     def __init__(self, obs_dim, action_dim, hidden_dim, hidden_depth, num_q=2):
         super().__init__()
 
-        self.Qs = nn.ModuleList([utils.q_net(obs_dim + action_dim, hidden_dim, 1, hidden_depth)])
+        self.Qs = nn.ModuleList([utils.q_net(obs_dim + action_dim, hidden_dim, 1, hidden_depth) for _ in range(num_q)])
 
         self.outputs = dict()
         self.apply(utils.weight_init)
