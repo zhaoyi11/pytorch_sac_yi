@@ -12,7 +12,7 @@ import hydra
 
 
 from agent.actor import DiagGaussianActor
-from agent.critic import DoubleQCritic, EnsembleQCritic
+from agent.critic import DoubleQCritic, EnsembleQCritic, Critic
 # REDQ
 class REDQAgent(Agent):
     """SAC algorithm."""
@@ -21,7 +21,7 @@ class REDQAgent(Agent):
                  actor_lr, actor_betas, actor_update_frequency, critic_lr,
                  critic_betas, critic_tau, critic_target_update_frequency,
                  batch_size, learnable_temperature,
-                 num_min, utd_ratio):
+                 num_min, num_q, utd_ratio):
         super().__init__()
 
         self.action_range = action_range
@@ -32,11 +32,13 @@ class REDQAgent(Agent):
         self.critic_target_update_frequency = critic_target_update_frequency
         self.batch_size = batch_size
         self.learnable_temperature = learnable_temperature
-
-        self.critic = EnsembleQCritic(**critic_cfg.params).to(self.device)
-        self.critic_target = EnsembleQCritic(**critic_cfg.params).to(self.device) 
-        self.critic_target.load_state_dict(self.critic.state_dict())
-
+    
+        self.num_q = num_q
+        self.critics = [Critic(**critic_cfg.params).to(self.device) for _ in range(self.num_q)]
+        self.critics_target = [Critic(**critic_cfg.params).to(self.device) for _ in range(self.num_q)]
+        for c, c_tar in zip(self.critics, self.critics_target):
+            c_tar.load_state_dict(c.state_dict())
+        
         self.actor = DiagGaussianActor(**actor_cfg.params).to(self.device)
 
         self.log_alpha = torch.tensor(np.log(init_temperature)).to(self.device)
@@ -52,21 +54,24 @@ class REDQAgent(Agent):
                                                 lr=actor_lr,
                                                 betas=actor_betas)
 
-        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(),
+        self.critics_optimizer = [torch.optim.Adam(c.parameters(),
                                                  lr=critic_lr,
-                                                 betas=critic_betas)
+                                                 betas=critic_betas) for c in self.critics]
 
         self.log_alpha_optimizer = torch.optim.Adam([self.log_alpha],
                                                     lr=alpha_lr,
                                                     betas=alpha_betas)
 
         self.train()
-        self.critic_target.train()
+        for c_tar in self.critics_target:
+            c_tar.train()
+
 
     def train(self, training=True):
         self.training = training
         self.actor.train(training)
-        self.critic.train(training)
+        for c in self.critics:
+            c.train(training)
 
     @property
     def alpha(self):
@@ -83,34 +88,43 @@ class REDQAgent(Agent):
 
     def update_critic(self, obs, action, reward, next_obs, not_done, logger,
                       step):
-        dist = self.actor(next_obs)
-        next_action = dist.rsample()
-        log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
 
-        random_idxs = np.random.permutation(len(self.critic.Qs))
-        target_Qs = self.critic_target(next_obs, next_action, idxs=random_idxs[:self.num_min])
-        target_V = torch.min(*target_Qs) - self.alpha.detach() * log_prob
-        target_Q = reward + (not_done * self.discount * target_V)
-        target_Q = target_Q.detach()
+
+        sampled_idxs = np.random.choice(self.num_q, self.num_min, replace=False)
+
+        with torch.no_grad():
+            dist = self.actor(next_obs)
+            next_action = dist.rsample()
+            log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
+            
+            q_preds = [self.critics_target[idx](next_obs, next_action) for idx in sampled_idxs]
+            target_V = torch.min(*q_preds) - self.alpha.detach() * log_prob
+            
+            target_Q = reward + (not_done * self.discount * target_V)
 
         # get current Q estimates
-        current_Qs = self.critic(obs, action)
+        current_Qs = [self.critics[i](obs, action) for i in range(self.num_q)]
         critic_loss = sum([F.mse_loss(current_Q, target_Q) for current_Q in current_Qs])
         logger.log('train_critic/loss', critic_loss, step)
 
         # Optimize the critic
-        self.critic_optimizer.zero_grad()
+        for c_opt in self.critics_optimizer:
+            c_opt.zero_grad()
         critic_loss.backward()
-        self.critic_optimizer.step()
 
-        self.critic.log(logger, step)
+        for c_opt in self.critics_optimizer:
+            c_opt.step()
+
+        # logging
+        for c in self.critics:
+            c.log(logger, step)
 
     def update_actor_and_alpha(self, obs, logger, step):
         dist = self.actor(obs)
         action = dist.rsample()
         log_prob = dist.log_prob(action).sum(-1, keepdim=True)
-        actor_Qs = self.critic(obs, action)
-        actor_Q = torch.stack(actor_Qs, 0).mean(0) # TODO: min or mean?
+        actor_Qs = [c(obs, action) for c in self.critics]
+        actor_Q = torch.stack(actor_Qs, 0).mean(0)
 
         actor_loss = (self.alpha.detach() * log_prob - actor_Q).mean()
 
@@ -145,8 +159,8 @@ class REDQAgent(Agent):
                             logger, step)
   
             if step % self.critic_target_update_frequency == 0:
-                utils.soft_update_params(self.critic, self.critic_target,
-                                        self.critic_tau)
+                for c, c_tar in zip(self.critics, self.critics_target):
+                    utils.soft_update_params(c, c_tar, self.critic_tau)
 
         # only update actor every utd_ratio                               
         if step % self.actor_update_frequency == 0:

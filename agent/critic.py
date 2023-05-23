@@ -35,6 +35,32 @@ class EnsembleQCritic(nn.Module):
 
 
 
+class Critic(nn.Module):
+    def __init__(self, obs_dim, action_dim, hidden_dim, hidden_depth):
+        super().__init__()
+
+        self.trunk = nn.Sequential(nn.Linear(obs_dim + action_dim, hidden_dim), nn.LayerNorm(hidden_dim), nn.Tanh())
+        self.Q = utils.mlp(hidden_dim, hidden_dim, 1, hidden_depth-1)
+
+        self.outputs = dict()
+        self.apply(utils.weight_init)
+
+    def forward(self, obs, action):
+        assert obs.size(0) == action.size(0)
+
+        obs_action = torch.cat([obs, action], dim=-1)
+        obs_action = self.trunk(obs_action)
+
+        q1 = self.Q(obs_action)
+        
+        self.outputs['q1'] = q1
+
+        return q1
+    
+    def log(self, logger, step):
+        for k, v in self.outputs.items():
+            logger.log_histogram(f'train_critic/{k}_hist', v, step)
+
 class DoubleQCritic(nn.Module):
     """Critic network, employes double Q-learning."""
     def __init__(self, obs_dim, action_dim, hidden_dim, hidden_depth):
